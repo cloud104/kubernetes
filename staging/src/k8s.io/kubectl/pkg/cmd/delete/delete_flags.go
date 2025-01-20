@@ -182,7 +182,7 @@ func NewDeleteCommandFlags(usage string) *DeleteFlags {
 	timeout := time.Duration(0)
 	wait := true
 	raw := ""
-	interactive := false
+	interactive := true
 
 	filenames := []string{}
 	recursive := false

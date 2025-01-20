@@ -34,6 +34,7 @@ import (
 	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/tools/clientcmd"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	cmdwait "k8s.io/kubectl/pkg/cmd/wait"
 	"k8s.io/kubectl/pkg/rawhttp"
@@ -524,6 +525,26 @@ func (o *DeleteOptions) PrintObj(info *resource.Info) {
 }
 
 func (o *DeleteOptions) confirmation(infos []*resource.Info) bool {
+	config, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
+		clientcmd.NewDefaultClientConfigLoadingRules(),
+		&clientcmd.ConfigOverrides{},
+	).RawConfig()
+
+	if err != nil {
+		fmt.Fprintf(o.Out, "Failed to get current context: %v\n", err)
+		return false
+	}
+
+	currentContext := config.CurrentContext
+	clusterInfo, ok := config.Contexts[currentContext]
+	if !ok {
+		fmt.Fprintf(o.Out, "Context '%s' not found in the kubeconfig\n", currentContext)
+		return false
+	}
+
+	fmt.Fprintf(o.Out, "Cluster: %s, Namespace: %s\n",
+		clusterInfo.Cluster, clusterInfo.Namespace)
+
 	fmt.Fprintf(o.Out, i18n.T("You are about to delete the following %d resource(s):\n"), len(infos))
 	for _, info := range infos {
 		groupKind := info.Mapping.GroupVersionKind
@@ -536,7 +557,7 @@ func (o *DeleteOptions) confirmation(infos []*resource.Info) bool {
 	}
 	fmt.Fprint(o.Out, i18n.T("Do you want to continue?")+" (y/n): ")
 	var input string
-	_, err := fmt.Fscan(o.In, &input)
+	_, err = fmt.Fscan(o.In, &input)
 	if err != nil {
 		return false
 	}
